@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
-import { isPostgresUrl, postgresSsl, safePostgresTarget } from '../db/postgresConfig.js';
+import { isPostgresUrl, postgresConnectionString, postgresSsl, safePostgresTarget } from '../db/postgresConfig.js';
 
 const url = process.env.DATABASE_URL || '';
 const onVercel = Boolean(process.env.VERCEL);
@@ -22,7 +22,7 @@ async function main(): Promise<void> {
   console.log(`[db:check] Connecting to ${target.host}:${target.port}/${target.database} as ${target.user || '(no user)'} ...`);
 
   const pool = new Pool({
-    connectionString: url,
+    connectionString: postgresConnectionString(url),
     ssl: postgresSsl(url),
     max: 1,
     connectionTimeoutMillis: 8000,

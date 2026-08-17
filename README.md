@@ -1,3 +1,13 @@
+# v0.4.6 Vercel runtime/TLS fix
+
+This patch fixes two deployment-specific issues:
+
+- The Vercel-imported Fastify module no longer calls `app.listen()` or `initDb()` during module import, even if the `VERCEL` system variable is unavailable.
+- PostgreSQL SSL query options are stripped before passing the connection string to `pg`, preventing them from overriding the explicit TLS object. Build preflight and runtime now use the same connection configuration.
+- `/health/runtime` is database-free and should prove the Vercel function can boot.
+
+Use the existing Vercel `DATABASE_URL`; both with and without `?sslmode=require` are tolerated because the pg-facing URL is sanitized.
+
 # v0.4.4 Vercel runtime fix
 
 This build fixes Vercel runtime crashes by:

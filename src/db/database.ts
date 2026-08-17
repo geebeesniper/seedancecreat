@@ -5,7 +5,7 @@ import { Kysely, PostgresDialect, SqliteDialect } from 'kysely';
 import { Pool } from 'pg';
 import { settings } from '../core/settings.js';
 import type { Database } from './types.js';
-import { isPostgresUrl, postgresSsl } from './postgresConfig.js';
+import { isPostgresUrl, postgresConnectionString, postgresSsl } from './postgresConfig.js';
 
 function sqlitePath(url: string): string {
   const raw = url.replace(/^sqlite:\/\/\//, '');
@@ -20,7 +20,7 @@ export function createDb(): Kysely<Database> {
     const ssl = postgresSsl(url);
     return new Kysely<Database>({
       dialect: new PostgresDialect({ pool: new Pool({
-        connectionString: url,
+        connectionString: postgresConnectionString(url),
         ssl,
         max: 3,
         connectionTimeoutMillis: 5000,

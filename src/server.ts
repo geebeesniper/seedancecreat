@@ -16,6 +16,7 @@ const web=path.join(root,'web');
 export const app=Fastify({logger:true});
 await app.register(cors,{origin:true});
 await app.register(rawBody,{field:'rawBody',global:false,encoding:false,runFirst:true});
+app.get('/health/runtime', async()=>({ok:true,runtime:'fastify',db_initialized:false}));
 app.get('/health',async()=>({
   ok:true,
   backend:'typescript',
@@ -25,7 +26,7 @@ app.get('/health',async()=>({
   stripe:Boolean(settings.stripeSecretKey),
   original_payment_preserved:true,
 }));
-if(!process.env.VERCEL){
+if(process.env.GS_ONE_LOCAL_SERVER === '1'){
   await app.register(fastifyStatic,{root:web,prefix:'/'});
   app.setNotFoundHandler(async(req,reply)=>{
     if(req.method==='GET' && !req.url.startsWith('/api/')) return reply.sendFile('index.html');
@@ -72,13 +73,6 @@ app.get('/health/db',async(_req,reply)=>{
   }
 });
 
-export async function start(){
-  await ensureInitialized();
-  await app.listen({port:settings.port,host:settings.host});
-}
-
-// Vercel consumes the exported Fastify app. Do not connect to the database at module import time.
+// Vercel consumes the exported Fastify app. This module never calls app.listen()
+// and never initializes the database merely by being imported.
 export default app;
-
-if(!process.env.VERCEL && process.env.NODE_ENV!=='test') start().catch(err=>{app.log.error(err);process.exit(1)});
-process.on('SIGTERM',async()=>{await app.close();await db.destroy();process.exit(0)});

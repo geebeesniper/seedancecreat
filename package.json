@@ -1,11 +1,11 @@
 {
   "name": "gs-one-saas-typescript",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "start": "node dist/src/server.js",
+    "dev": "tsx watch src/local.ts",
+    "start": "node dist/src/local.js",
     "build": "tsc -p tsconfig.json && node dist/src/scripts/dbCheck.js",
     "test": "tsx tests/smoke.ts",
     "check": "tsc -p tsconfig.json --noEmit",
