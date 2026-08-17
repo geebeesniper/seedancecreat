@@ -1,0 +1,1 @@
+const o="/assets/logo-BDQfdea_.png";export{o as l};
