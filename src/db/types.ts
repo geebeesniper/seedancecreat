@@ -52,6 +52,12 @@ export interface PaymentOrderTable {
 export interface PaymentEventTable {
   id: string; provider: string; eventType: string; payload: string; processedAt: string;
 }
+
+export interface ApiKeyTable {
+  id: string; tenantId: string; userId: string; name: string; mode: string; keyPrefix: string; keyHash: string;
+  scopes: string; status: string; lastUsedAt: string | null; createdAt: string; revokedAt: string | null;
+}
+
 export interface CreditLedgerTable {
   id: string; tenantId: string; userId: string; currency: string; deltaMinor: number; source: string; sourceId: string;
   description: string; createdAt: string;
@@ -69,4 +75,5 @@ export interface Database {
   payment_orders: PaymentOrderTable;
   payment_events: PaymentEventTable;
   credit_ledger: CreditLedgerTable;
+  api_keys: ApiKeyTable;
 }

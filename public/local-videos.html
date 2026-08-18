@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>本地视频库 · GS-One</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#070d18;color:#e5edf7}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 15% 0,#0d2631 0,transparent 32%),#070d18;min-height:100vh}
+    button{font:inherit}.wrap{max-width:1280px;margin:0 auto;padding:28px 24px 80px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.back{color:#94a3b8;text-decoration:none;font-size:14px}.back:hover{color:white}.title{font-size:27px;font-weight:800;margin:6px 0}.sub{color:#8fa3b8;font-size:14px}
+    .card{background:rgba(12,23,37,.92);border:1px solid #203247;border-radius:18px;padding:20px;box-shadow:0 14px 40px rgba(0,0,0,.18);margin-top:16px}.storage{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}.statusLine{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.pill{font-size:12px;padding:5px 9px;border-radius:999px;border:1px solid}.ok{color:#54e6b2;background:#0c312a;border-color:#17604d}.err{color:#ff818a;background:#34161e;border-color:#6c2635}.warn{color:#f7cb6e;background:#312611;border-color:#634b1d}.muted{color:#9badc1;background:#132030;border-color:#29405b}.actions{display:flex;gap:10px;flex-wrap:wrap}.btn{border:1px solid #334a63;background:#132238;color:#dce8f5;border-radius:10px;padding:9px 13px;cursor:pointer}.btn:hover{background:#1b314d}.btn.primary{background:#0da77c;border-color:#10c894;color:#041813;font-weight:750}.btn.danger{background:#2a1720;border-color:#713044;color:#ff9ca4}.btn:disabled{opacity:.45;cursor:not-allowed}
+    .notice{font-size:13px;color:#aebed0;line-height:1.65}.notice b{color:#f8fafc}.errorBox{display:none;margin-top:12px;padding:11px 13px;border-radius:10px;background:#30141b;border:1px solid #6c2635;color:#ff8b94;font-size:13px;white-space:pre-wrap}.errorBox.show{display:block}
+    h2{font-size:17px;margin:0}.sectionHead{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:15px}.count{color:#72859b;font-size:12px}.grid{display:grid;gap:11px}.row{border:1px solid #203247;background:#0a1422;border-radius:13px;padding:14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}.rowTitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#7890aa;margin-top:6px;word-break:break-all}.msg{font-size:12px;color:#9caec0;margin-top:6px}.rowActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.empty{padding:30px;text-align:center;color:#6f849a;border:1px dashed #29405b;border-radius:13px}.tag{display:inline-block;margin-right:7px;font-size:10px;font-weight:800;letter-spacing:.06em;padding:4px 7px;border-radius:6px}.tag.available{color:#5be8b5;background:#113729}.tag.error{color:#ff9098;background:#3c1720}.tag.wait{color:#f1ca75;background:#382c14}.tag.local{color:#8cbcff;background:#162a46}
+    .videoModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.84);z-index:9999;padding:30px;align-items:center;justify-content:center}.videoModal.show{display:flex}.modalBox{width:min(1100px,96vw);max-height:94vh;background:#060b12;border:1px solid #2a3c50;border-radius:16px;overflow:hidden}.modalHead{height:54px;display:flex;justify-content:space-between;align-items:center;padding:0 16px;border-bottom:1px solid #202e3d}.modalName{font-size:13px;color:#c5d2e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.close{background:transparent;color:#9fb0c3;border:0;font-size:24px;cursor:pointer}.viewer{background:black;display:flex;justify-content:center}.viewer video{max-width:100%;max-height:calc(94vh - 54px)}
+    @media(max-width:720px){.storage{grid-template-columns:1fr}.row{grid-template-columns:1fr}.rowActions{justify-content:flex-start}.top{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div><a class="back" href="/library">← 返回项目库</a><div class="title">本地视频库</div><div class="sub">视频保存在你授权的电脑目录；数据库只保存生成队列记录。</div></div><div class="actions"><a class="btn" href="/">主页</a></div></div>
+
+  <section class="card">
+    <div class="storage">
+      <div>
+        <div class="statusLine"><strong>本地存储</strong><span id="storagePill" class="pill muted">检查中</span><span id="rootName" class="sub"></span></div>
+        <div class="notice" style="margin-top:10px">首次请选择一个父目录，程序会在里面创建 <b>SeedanceVideos</b>。以后优先恢复这个目录；如果子目录被删，会自动重建；重建失败则显示 ERROR。</div>
+        <div id="storageError" class="errorBox"></div>
+      </div>
+      <div class="actions"><button id="chooseBtn" class="btn primary">选择 / 更换目录</button><button id="reauthBtn" class="btn">重新授权</button><button id="scanBtn" class="btn">扫描并同步</button></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="sectionHead"><div><h2>生成队列</h2><div class="sub">有本地文件可直接播放；缺失文件标记 ERROR。任何状态都可以“从队列移除”。</div></div><span id="queueCount" class="count"></span></div>
+    <div id="queueList" class="grid"><div class="empty">正在读取…</div></div>
+  </section>
+
+  <section class="card">
+    <div class="sectionHead"><div><h2>本地已有视频</h2><div class="sub">扫描 SeedanceVideos 下全部视频，包括已经从队列移除的文件。<b style="color:#ffb0b5">这里没有删除视频功能。</b></div></div><span id="fileCount" class="count"></span></div>
+    <div id="fileList" class="grid"><div class="empty">尚未扫描</div></div>
+  </section>
+</div>
+
+<div id="videoModal" class="videoModal"><div class="modalBox"><div class="modalHead"><div id="modalName" class="modalName"></div><button id="closeModal" class="close" title="关闭">×</button></div><div class="viewer"><video id="player" controls autoplay></video></div></div></div>
+
+<script src="/local-video-storage.js"></script>
+<script>
+(function(){
+  const S=window.GSLocalVideoStorage;
+  const $=id=>document.getElementById(id);
+  let files=[]; let queue=[]; let currentObjectUrl='';
+  const headers=()=>({'x-tenant-id':localStorage.getItem('gs_one_tenant')||'default','x-user-id':localStorage.getItem('gs_one_user')||'default'});
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtSize=n=>{n=Number(n||0);if(n<1024)return n+' B';if(n<1024*1024)return(n/1024).toFixed(1)+' KB';if(n<1024*1024*1024)return(n/1024/1024).toFixed(1)+' MB';return(n/1024/1024/1024).toFixed(2)+' GB'};
+  const videoUrl=g=>String(g.video_url||g.videoUrl||g.result_url||g.resultUrl||'').trim();
+  function findFile(g){const id=String(g.id||'');return files.find(f=>id&&(f.name.includes(id)||f.relativePath.includes(id)))||null}
+  function statusFor(g){const f=findFile(g);if(f)return{kind:'available',label:'AVAILABLE',msg:'本地文件存在',file:f};const meta=S.getGenerationMeta(String(g.id||''));if(videoUrl(g))return{kind:'error',label:'ERROR',msg:meta&&meta.error?meta.error:(S.getStatus().configured?'本地文件不存在':'尚未选择本地保存目录')};if(g.error)return{kind:'error',label:'ERROR',msg:String(g.error)};return{kind:'wait',label:'WAITING',msg:'生成尚未完成或尚无视频 URL'}}
+  function renderStorage(){const st=S.getStatus(),p=$('storagePill'),e=$('storageError');$('rootName').textContent=st.rootName?('父目录：'+st.rootName+' / '+st.libraryName):'';e.textContent=st.lastError||'';e.classList.toggle('show',!!st.lastError);p.className='pill '+(st.libraryReady?'ok':st.lastError?'err':st.configured?'warn':'muted');p.textContent=!st.supported?'浏览器不支持':st.libraryReady?'READY':st.lastError?'ERROR':st.configured?('权限 '+st.permission):'未配置';$('reauthBtn').style.display=st.configured?'inline-block':'none'}
+  async function fetchQueue(){const r=await fetch('/api/local-video-queue',{headers:headers()});const j=await r.json();if(!r.ok||!j.success)throw new Error(j.error||'QUEUE_LOAD_FAILED');queue=Array.isArray(j.items)?j.items:[]}
+  async function scan(){renderStorage();try{files=await S.scanVideos()}catch(e){files=[]}renderStorage();renderFiles();renderQueue()}
+  async function syncAll(interactive){if(!S.getStatus().configured&&interactive)await S.chooseRoot();await scan();for(const g of queue){if(!videoUrl(g)||findFile(g))continue;try{await S.saveGeneration(g,{interactive:false})}catch(e){}await scan()} }
+  function renderQueue(){const box=$('queueList');$('queueCount').textContent=queue.length+' 条';if(!queue.length){box.innerHTML='<div class="empty">当前没有生成队列记录</div>';return}box.innerHTML=queue.map(g=>{const st=statusFor(g),f=st.file;return `<div class="row"><div><div><span class="tag ${st.kind}">${st.label}</span><span class="rowTitle">${esc(g.model_name||'Video')} · Shot ${esc(g.shot_seq??'-')}</span></div><div class="meta">ID ${esc(g.id)} · Project ${esc(g.project_id||'-')}</div><div class="msg">${esc(st.msg)}</div>${f?`<div class="meta">${esc(f.relativePath)} · ${fmtSize(f.size)}</div>`:''}</div><div class="rowActions">${f?`<button class="btn" data-play="${esc(f.relativePath)}">▶ 播放</button>`:''}${!f&&videoUrl(g)?`<button class="btn" data-save="${esc(g.id)}">重新保存</button>`:''}<button class="btn danger" data-remove="${esc(g.id)}">从队列移除</button></div></div>`}).join('');bindRows()}
+  function renderFiles(){const box=$('fileList');$('fileCount').textContent=files.length+' 个';if(!files.length){box.innerHTML='<div class="empty">SeedanceVideos 中没有找到视频</div>';return}box.innerHTML=files.map(f=>`<div class="row"><div><div><span class="tag local">LOCAL</span><span class="rowTitle">${esc(f.name)}</span></div><div class="meta">${esc(f.relativePath)}</div><div class="msg">${fmtSize(f.size)}${f.lastModified?' · '+new Date(f.lastModified).toLocaleString():''}</div></div><div class="rowActions"><button class="btn" data-play="${esc(f.relativePath)}">▶ 播放</button></div></div>`).join('');bindRows()}
+  function bindRows(){document.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>playPath(b.getAttribute('data-play')));document.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>saveOne(b.getAttribute('data-save')));document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>removeQueue(b.getAttribute('data-remove')))}
+  async function playPath(path){const f=files.find(x=>x.relativePath===path);if(!f)return alert('ERROR：本地视频不存在');try{const o=await S.openVideo(f);if(currentObjectUrl)URL.revokeObjectURL(currentObjectUrl);currentObjectUrl=o.url;$('modalName').textContent=f.relativePath;$('player').src=o.url;$('videoModal').classList.add('show')}catch(e){alert('ERROR：无法打开本地视频\n'+(e.message||e))}}
+  async function saveOne(id){const g=queue.find(x=>String(x.id)===String(id));if(!g)return;try{if(!S.getStatus().configured)await S.chooseRoot();await S.saveGeneration(g,{interactive:true});await scan()}catch(e){renderStorage();renderQueue();alert('本地保存失败：'+(e.message||e))}}
+  async function removeQueue(id){if(!confirm('只从生成队列移除此记录？\n\n本地视频文件不会被删除。'))return;const r=await fetch('/api/local-video-queue?id='+encodeURIComponent(id),{method:'DELETE',headers:headers()});const j=await r.json();if(!r.ok||!j.success)return alert('移除失败：'+(j.error||r.status));await refresh(false)}
+  async function refresh(doSync){try{await fetchQueue();await scan();if(doSync)await syncAll(false)}catch(e){$('queueList').innerHTML='<div class="empty" style="color:#ff8993">ERROR：'+esc(e.message||e)+'</div>'}}
+  $('chooseBtn').onclick=async()=>{try{await S.chooseRoot();await refresh(true)}catch(e){if(e.name!=='AbortError')alert('目录设置失败：'+(e.message||e))}};
+  $('reauthBtn').onclick=async()=>{try{await S.reauthorize();await refresh(true)}catch(e){alert('重新授权失败：'+(e.message||e))}};
+  $('scanBtn').onclick=async()=>{try{if(!S.getStatus().configured)await S.chooseRoot();await refresh(true)}catch(e){if(e.name!=='AbortError')alert('扫描失败：'+(e.message||e))}};
+  $('closeModal').onclick=()=>{$('videoModal').classList.remove('show');$('player').pause();$('player').removeAttribute('src');if(currentObjectUrl){URL.revokeObjectURL(currentObjectUrl);currentObjectUrl=''}};
+  $('videoModal').onclick=e=>{if(e.target===$('videoModal'))$('closeModal').click()};
+  S.onStatus(renderStorage);renderStorage();refresh(true);
+})();
+</script>
+</body>
+</html>

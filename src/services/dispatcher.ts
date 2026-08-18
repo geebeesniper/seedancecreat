@@ -40,11 +40,16 @@ export class Dispatcher {
     if(m==='AddManualEpisode')return s.addEpisode(ctx,String(a[0]),String(a[1]??''),String(a[2]??''));
     if(m==='UpdateEpisodeTitle')return s.updateEpisode(ctx,String(a[0]),'title',String(a[1]??''));
     if(m==='UpdateEpisodeContent')return s.updateEpisode(ctx,String(a[0]),'contentFinal',String(a[1]??''));
+    if(m==='SaveEpisodeConfig')return s.saveEpisodeConfig(ctx,String(a[0]),Number(a[1]??0),Number(a[2]??0),String(a[3]??'follow'));
     if(m==='DetectScriptStructure')return s.detectStructure(String(a[0]??''));
     if(m==='StartPhysicalSplit'||m==='RestartPhysicalSplit')return s.physicalSplit(ctx,String(a[0]),Number(a[1]??1),String(a.at(-1)??''));
     if(m==='CanRestartPhysicalSplit')return true;
     if(m==='GetAllAssets')return s.assets(ctx,String(a[0]));
-    if(m==='CreateAsset')return s.createAsset(ctx,String(a[0]),String(a[1]),String(a[2]));
+    if(m==='CreateAsset'){
+      const asset=await s.createAsset(ctx,String(a[0]),String(a[1]),String(a[2]));
+      // Original Vue code expects a JSON string and calls startsWith()/JSON.parse().
+      return JSON.stringify(asset);
+    }
     if(m==='DeleteAsset')return s.deleteAsset(ctx,String(a[0]));
     if(m==='UpdateAssetDescription')return s.mutateAsset(ctx,String(a[0]),{description:String(a[1]??'')});
     if(m==='UpdateAssetStyleHint')return s.mutateAsset(ctx,String(a[0]),{styleHint:String(a[1]??'')});
@@ -53,15 +58,35 @@ export class Dispatcher {
     if(m==='SaveAssetPromptTabs')return s.mutateAsset(ctx,String(a[0]),{promptVersions:JSON.stringify(a[1]??[]),activePromptVersion:Number(a[2]??0)});
     if(m==='GetProjectSettings')return s.projectSettings(ctx,String(a[0]));
     if(m==='SaveProjectSettings') {
-      const pid=typeof a[0]==='string'?String(a[0]):String(obj(a[0]).projectId??obj(a[0]).project_id??'');
-      const payload=typeof a[1]==='object'?obj(a[1]):obj(a[0]); return s.saveSettings(ctx,pid,payload);
+      const first=obj(a[0]);
+      const pid=typeof a[0]==='string'?String(a[0]):String(first.projectId??first.project_id??'');
+      let payload:Record<string,unknown>;
+      if(typeof a[1]==='object' && a[1]!==null && !Array.isArray(a[1])) payload=obj(a[1]);
+      else if(typeof a[0]==='object' && a[0]!==null && !Array.isArray(a[0])) payload=first;
+      else payload={
+        segmentCount:Number(a[1]??8),
+        segmentDuration:Number(a[2]??15),
+        splittingMode:String(a[3]??'builtin'),
+        splittingScript:String(a[4]??''),
+        videoPromptScript:String(a[5]??''),
+        editorModelId:String(a[6]??''),
+        directorModelId:String(a[7]??''),
+        promptModelId:String(a[7]??a[6]??''),
+        preScriptContent:String(a[8]??''),
+        selectedSchemeKey:String(a[9]??''),
+        isConfigured:true,
+      };
+      return s.saveSettings(ctx,pid,payload);
     }
     if(m==='ListTasks')return s.listTasks(ctx);
     if(m==='ListVideoGenerations')return s.listVideos(ctx);
     if(m==='ListVideoGenerationsByProject')return s.listVideos(ctx,String(a[0]));
-    if(m==='GetProjectSlices'||m==='GetProjectRelations')return [];
+    if(m==='GetProjectSlices')return [];
+    if(m==='GetProjectRelations')return '[]';
     if(m==='GetModelSettings')return {authenticated:true,models:[],default_model:''};
     if(m==='GetVideoFeaturePointSchema')return {success:true,schema:[]};
+    if(m==='UploadAssetImage'||m==='UploadAssetAudio'||m==='CreateAssetAndUpload'||m==='FetchImageBase64')
+      return `error:${m} 尚未迁移到 SaaS`;
     return {success:false,code:'NOT_MIGRATED_YET',method:m,message:`${m} endpoint retained; local GS-One behavior is not migrated yet`};
   }
 }

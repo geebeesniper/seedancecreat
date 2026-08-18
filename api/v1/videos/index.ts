@@ -1,0 +1,4 @@
+import { queryValue } from '../../../src/apiUtils.js';
+import { allowCors,ensureDatabase,externalAuth,fail,json,type VercelReq,type VercelRes } from '../../../src/externalApiHttp.js';
+import { externalVideoApiService } from '../../../src/services/externalVideoApiService.js';
+export default async function handler(req:VercelReq,res:VercelRes){if(allowCors(req,res))return;if((req.method||'GET').toUpperCase()!=='GET')return json(res,405,{success:false,code:'METHOD_NOT_ALLOWED'});if(!(await ensureDatabase(res)))return;const auth=await externalAuth(req,res,['videos:read']);if(!auth)return;try{const items=await externalVideoApiService.list(auth.ctx,{projectId:queryValue(req,'project_id'),status:queryValue(req,'status'),limit:Number(queryValue(req,'limit')||50)});json(res,200,{success:true,items});}catch(e){fail(res,e);}}

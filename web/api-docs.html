@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>GS-One API</title><style>body{font:15px system-ui;max-width:980px;margin:40px auto;padding:0 20px;line-height:1.6}code,pre{background:#f5f5f5;padding:2px 6px;border-radius:6px}pre{padding:16px;overflow:auto}</style><h1>GS-One External API</h1><p>REST: <code>/api/v1</code> · GraphQL: <code>/api/graphql</code> · OpenAPI: <a href="/openapi.json">/openapi.json</a></p><h2>Authentication</h2><pre>Authorization: Bearer sk_test_...</pre><h2>REST generate</h2><pre>POST /api/v1/videos/generate
+{
+  "prompt": "...",
+  "model": "seedance-2.5",
+  "duration": 10,
+  "resolution": "1080p"
+}</pre><h2>GraphQL generate</h2><pre>mutation Generate($input: GenerateVideoInput!) {
+  generateVideo(input: $input) { success code generation { id status videoUrl error } }
+}</pre><p><strong>Note:</strong> both APIs share the same generation service and the existing GS-One GenerateVideo adapter. If the core GenerateVideo method is not yet migrated/configured, submission returns an explicit error rather than pretending generation succeeded.</p>

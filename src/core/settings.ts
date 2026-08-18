@@ -15,7 +15,7 @@ function intList(value: string | undefined, fallback: number[]): number[] {
 }
 
 export const settings = {
-  appVersion: process.env.APP_VERSION || 'saas-typescript-0.4.8-vercel-native-api',
+  appVersion: process.env.APP_VERSION || 'saas-typescript-0.6.0-rest-graphql-api',
   port: Number(process.env.PORT || 8000),
   host: process.env.HOST || '0.0.0.0',
   databaseUrl: process.env.DATABASE_URL || 'sqlite:///./data/gs_one.db',
@@ -33,4 +33,8 @@ export const settings = {
   stripeMaxRechargeMinor: intEnv(process.env.STRIPE_MAX_RECHARGE_MINOR, 100_000),
   stripeRechargePresetsMinor: intList(process.env.STRIPE_RECHARGE_PRESETS_MINOR, [1000, 2000, 5000, 10000]),
   publicBaseUrl: (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, ''),
+
+  // External REST + GraphQL API. Keys are hashed in the database.
+  apiAdminSecret: process.env.API_ADMIN_SECRET || '',
+  externalApiAuthDisabled: boolEnv(process.env.EXTERNAL_API_AUTH_DISABLED, false),
 };

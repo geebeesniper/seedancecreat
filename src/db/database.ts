@@ -165,4 +165,13 @@ export async function initDb(): Promise<void> {
     .addColumn('sourceId','text',c=>c.notNull()).addColumn('description','text',c=>c.notNull()).addColumn('createdAt','text',c=>c.notNull()).execute();
   await schema.createIndex('credit_ledger_identity_idx').ifNotExists().on('credit_ledger').columns(['tenantId','userId','createdAt']).execute();
   await schema.createIndex('credit_ledger_source_idx').ifNotExists().on('credit_ledger').columns(['source','sourceId']).unique().execute();
+
+  await schema.createTable('api_keys').ifNotExists()
+    .addColumn('id','text',c=>c.primaryKey()).addColumn('tenantId','text',c=>c.notNull()).addColumn('userId','text',c=>c.notNull())
+    .addColumn('name','text',c=>c.notNull()).addColumn('mode','text',c=>c.notNull()).addColumn('keyPrefix','text',c=>c.notNull())
+    .addColumn('keyHash','text',c=>c.notNull()).addColumn('scopes','text',c=>c.notNull()).addColumn('status','text',c=>c.notNull())
+    .addColumn('lastUsedAt','text').addColumn('createdAt','text',c=>c.notNull()).addColumn('revokedAt','text').execute();
+  await schema.createIndex('api_keys_hash_idx').ifNotExists().on('api_keys').column('keyHash').unique().execute();
+  await schema.createIndex('api_keys_identity_idx').ifNotExists().on('api_keys').columns(['tenantId','userId','createdAt']).execute();
 }
+

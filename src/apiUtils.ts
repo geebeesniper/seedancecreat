@@ -19,16 +19,16 @@ export type VercelRes = {
   end: (body?: unknown) => void;
 };
 
-function header(req: VercelReq, name: string): string | undefined {
+export function headerValue(req: VercelReq, name: string): string | undefined {
   const value = req.headers[name.toLowerCase()] ?? req.headers[name];
   return Array.isArray(value) ? value[0] : value;
 }
 
 export function context(req: VercelReq): RequestContext {
   return {
-    tenantId: header(req, 'x-tenant-id') || settings.defaultTenantId,
-    userId: header(req, 'x-user-id') || settings.defaultUserId,
-    requestId: header(req, 'x-request-id') || randomUUID(),
+    tenantId: headerValue(req, 'x-tenant-id') || settings.defaultTenantId,
+    userId: headerValue(req, 'x-user-id') || settings.defaultUserId,
+    requestId: headerValue(req, 'x-request-id') || randomUUID(),
     upstreamAccessToken: settings.upstreamAccessToken,
   };
 }
@@ -40,8 +40,8 @@ export function json(res: VercelRes, status: number, body: unknown): void {
 
 export function allowCors(req: VercelReq, res: VercelRes): boolean {
   res.setHeader('access-control-allow-origin', '*');
-  res.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
-  res.setHeader('access-control-allow-headers', 'content-type,x-tenant-id,x-user-id,x-request-id,stripe-signature');
+  res.setHeader('access-control-allow-methods', 'GET,POST,DELETE,OPTIONS');
+  res.setHeader('access-control-allow-headers', 'content-type,authorization,x-api-key,x-api-admin-secret,x-tenant-id,x-user-id,x-request-id,stripe-signature');
   if ((req.method || '').toUpperCase() === 'OPTIONS') {
     res.status(204).end();
     return true;
@@ -111,7 +111,7 @@ export function publicBaseUrl(req: VercelReq): string {
   if (settings.publicBaseUrl) return settings.publicBaseUrl;
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   if (vercel) return `https://${vercel}`;
-  const proto = header(req, 'x-forwarded-proto') || 'http';
-  const host = header(req, 'x-forwarded-host') || header(req, 'host') || '127.0.0.1:8000';
+  const proto = headerValue(req, 'x-forwarded-proto') || 'http';
+  const host = headerValue(req, 'x-forwarded-host') || headerValue(req, 'host') || '127.0.0.1:8000';
   return `${proto}://${host}`;
 }

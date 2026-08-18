@@ -45,7 +45,10 @@ function assetView(x: AssetTable) {
   const promptVersions=parseJson<unknown[]>(x.promptVersions,[]);
   return { id:x.id, project_id:x.projectId, projectId:x.projectId, name:x.name, type:x.type, description:x.description,
     image_path:x.imagePath, imagePath:x.imagePath, audio_path:x.audioPath, audioPath:x.audioPath, importance:x.importance,
-    style_hint:x.styleHint, styleHint:x.styleHint, prompt_versions:promptVersions, promptVersions,
+    style_hint:x.styleHint, styleHint:x.styleHint,
+    // The extracted Vue client calls JSON.parse(asset.prompt_versions). Keep the legacy
+    // snake_case field as JSON text while also exposing a parsed camelCase field.
+    prompt_versions:x.promptVersions||'[]', promptVersions,
     active_prompt_version:x.activePromptVersion, activePromptVersion:x.activePromptVersion, pos_x:x.posX, posX:x.posX, pos_y:x.posY, posY:x.posY };
 }
 
@@ -59,7 +62,10 @@ export class AppService {
     const t=now(); const row:ProjectTable={ id:randomUUID(), tenantId:ctx.tenantId, userId:ctx.userId, fileName:name||'未命名项目', storageKey:'', totalChars:0,
       sliceCount:0, outline:'', status:0, errorMsg:'', tokensUsed:'{}', episodeCount:Number(episodeCount||0), episodeDuration:0,
       splitMethod:'builtin', modelId:'', unifiedCode:randomUUID().replace(/-/g,'').slice(0,12), saasDramaId:null, createdAt:t, updatedAt:t };
-    await db.insertInto('projects').values(row).execute(); return {success:true, project:projectView(row)};
+    await db.insertInto('projects').values(row).execute();
+    const project=projectView(row);
+    // Legacy Wails/Vue contract: the UI reads project_id and unified_code directly.
+    return {success:true, project_id:row.id, projectId:row.id, unified_code:row.unifiedCode, unifiedCode:row.unifiedCode, file_name:row.fileName, fileName:row.fileName, project};
   }
   async listProjects(ctx:RequestContext) {
     const rows=await db.selectFrom('projects').selectAll().where('tenantId','=',ctx.tenantId).where('userId','=',ctx.userId).orderBy('updatedAt','desc').execute();
@@ -69,7 +75,10 @@ export class AppService {
     const row=await db.selectFrom('projects').selectAll().where('id','=',id).where('tenantId','=',ctx.tenantId).executeTakeFirst(); return row?projectView(row):null;
   }
   async renameProject(ctx:RequestContext,id:string,name:string) {
-    const r=await db.updateTable('projects').set({fileName:name,updatedAt:now()}).where('id','=',id).where('tenantId','=',ctx.tenantId).executeTakeFirst(); return Number(r.numUpdatedRows)>0;
+    await db.updateTable('projects').set({fileName:name,updatedAt:now()}).where('id','=',id).where('tenantId','=',ctx.tenantId).execute();
+    const row=await db.selectFrom('projects').selectAll().where('id','=',id).where('tenantId','=',ctx.tenantId).executeTakeFirst();
+    if(!row) return {success:false,error:'PROJECT_NOT_FOUND'};
+    return {success:row.fileName===name,file_name:row.fileName,fileName:row.fileName,project:projectView(row)};
   }
   async deleteProject(ctx:RequestContext,id:string) {
     await db.transaction().execute(async trx=>{
@@ -80,7 +89,9 @@ export class AppService {
       await trx.deleteFrom('video_generations').where('projectId','=',id).where('tenantId','=',ctx.tenantId).execute();
       await trx.deleteFrom('jobs').where('projectId','=',id).where('tenantId','=',ctx.tenantId).execute();
       await trx.deleteFrom('projects').where('id','=',id).where('tenantId','=',ctx.tenantId).execute();
-    }); return true;
+    });
+    const stillThere=await db.selectFrom('projects').select('id').where('id','=',id).where('tenantId','=',ctx.tenantId).executeTakeFirst();
+    return stillThere ? {success:false,error:'DELETE_NOT_APPLIED',project_id:id} : {success:true,deleted:true,project_id:id,projectId:id};
   }
   async episodes(ctx:RequestContext,pid:string) {
     return (await db.selectFrom('episodes').selectAll().where('projectId','=',pid).where('tenantId','=',ctx.tenantId).orderBy('epNum').execute()).map(episodeView);
@@ -94,6 +105,18 @@ export class AppService {
     await db.transaction().execute(async trx=>{ await trx.insertInto('episodes').values(row).execute(); await trx.updateTable('projects').set({episodeCount:n,updatedAt:t}).where('id','=',pid).execute(); });
     return episodeView(row);
   }
+  async saveEpisodeConfig(ctx:RequestContext,pid:string,episodeCount:number,episodeDuration:number,splitMethod:string) {
+    await db.updateTable('projects').set({
+      episodeCount:Math.max(0,Number(episodeCount||0)),
+      episodeDuration:Math.max(0,Number(episodeDuration||0)),
+      splitMethod:splitMethod||'follow',
+      updatedAt:now(),
+    }).where('id','=',pid).where('tenantId','=',ctx.tenantId).execute();
+    const row=await db.selectFrom('projects').selectAll().where('id','=',pid).where('tenantId','=',ctx.tenantId).executeTakeFirst();
+    if(!row) throw new Error('PROJECT_NOT_FOUND');
+    return {success:true,project_id:pid,projectId:pid,episode_count:row.episodeCount,episodeCount:row.episodeCount,episode_duration:row.episodeDuration,episodeDuration:row.episodeDuration,split_method:row.splitMethod,splitMethod:row.splitMethod};
+  }
+
   async updateEpisode(ctx:RequestContext,id:string,field:'title'|'contentFinal',value:string) {
     await db.updateTable('episodes').set({...{[field]:value},updatedAt:now()}).where('id','=',id).where('tenantId','=',ctx.tenantId).execute();
     const row=await db.selectFrom('episodes').selectAll().where('id','=',id).where('tenantId','=',ctx.tenantId).executeTakeFirst(); return row?episodeView(row):false;
@@ -109,7 +132,12 @@ export class AppService {
     await db.updateTable('assets').set({...patch,updatedAt:now()}).where('id','=',id).where('tenantId','=',ctx.tenantId).execute();
     const row=await db.selectFrom('assets').selectAll().where('id','=',id).where('tenantId','=',ctx.tenantId).executeTakeFirst(); return row?assetView(row):false;
   }
-  async deleteAsset(ctx:RequestContext,id:string) { await db.deleteFrom('assets').where('id','=',id).where('tenantId','=',ctx.tenantId).execute(); return true; }
+  async deleteAsset(ctx:RequestContext,id:string) {
+    await db.deleteFrom('assets').where('id','=',id).where('tenantId','=',ctx.tenantId).execute();
+    const stillThere=await db.selectFrom('assets').select('id').where('id','=',id).where('tenantId','=',ctx.tenantId).executeTakeFirst();
+    // Legacy asset UI expects exactly "ok" or an "error:" string.
+    return stillThere ? 'error:删除未生效' : 'ok';
+  }
 
   private settingView(pid:string,row?:ProjectSettingTable) {
     const x=row||({projectId:pid,tenantId:'',...defaults} as ProjectSettingTable);
