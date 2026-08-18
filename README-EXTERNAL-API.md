@@ -1,33 +1,55 @@
 # External REST + GraphQL API
 
-Both API styles use the **same** `ExternalVideoApiService`; there is no duplicate generation logic.
+GS-One now has **two authentication layers**:
 
-## 1. Configure API administration
+1. `gs_session_...` — first-party browser/user session after login.
+2. `sk_test_...` / `sk_live_...` — API keys for Flux or other server-to-server integrations.
 
-Set a strong Vercel environment variable:
+Do not put an API key in Flux browser JavaScript. Keep it in the Flux backend.
 
-```text
-API_ADMIN_SECRET=<random secret>
+## User login API
+
+REST:
+
+```bash
+curl -X POST https://YOUR_DOMAIN/api/v1/auth/login \
+  -H "content-type: application/json" \
+  -d '{"identifier":"jeremy","password":"YOUR_PASSWORD"}'
 ```
 
-For production leave this false (default):
+Registration (when `ALLOW_SIGNUP=true`):
 
-```text
-EXTERNAL_API_AUTH_DISABLED=false
+```bash
+curl -X POST https://YOUR_DOMAIN/api/v1/auth/register \
+  -H "content-type: application/json" \
+  -d '{"username":"jeremy","email":"me@example.com","password":"YOUR_PASSWORD"}'
 ```
 
-## 2. Create an API key
+The response returns a `gs_session_...` bearer token. Use it with:
+
+- `GET /api/v1/auth/me`
+- `POST /api/v1/auth/logout`
+- `GET/POST/DELETE /api/v1/api-keys`
+- first-party `/api/app/*`, payment, and local-video queue endpoints
+
+GraphQL also exposes `register`, `login`, `authMe`, and `logout`.
+
+## Create an API key for Flux
+
+A signed-in user can create their own key:
 
 ```bash
 curl -X POST https://YOUR_DOMAIN/api/v1/api-keys \
-  -H "x-api-admin-secret: YOUR_ADMIN_SECRET" \
+  -H "Authorization: Bearer gs_session_xxx" \
   -H "content-type: application/json" \
   -d '{"name":"Flux","mode":"test","scopes":["videos:read","videos:write","models:read","wallet:read"]}'
 ```
 
-The `sk_test_...` value is shown **once**. Store it in the Flux backend, not browser JavaScript.
+The `sk_test_...` value is shown **once**.
 
-## REST
+An `API_ADMIN_SECRET` path is still available for operations/bootstrap.
+
+## REST video API
 
 ```bash
 curl -X POST https://YOUR_DOMAIN/api/v1/videos/generate \
@@ -41,7 +63,7 @@ curl https://YOUR_DOMAIN/api/v1/videos/GENERATION_ID \
   -H "Authorization: Bearer sk_test_xxx"
 ```
 
-Other REST endpoints:
+Other endpoints:
 
 - `GET /api/v1/videos`
 - `POST /api/v1/videos/:id/cancel`
@@ -53,6 +75,20 @@ Other REST endpoints:
 
 Endpoint: `POST /api/graphql`
 
+Login example:
+
+```graphql
+mutation {
+  login(identifier: "jeremy", password: "YOUR_PASSWORD") {
+    token
+    expiresAt
+    user { id username email }
+  }
+}
+```
+
+Video generation example (API key required):
+
 ```graphql
 mutation Generate($input: GenerateVideoInput!) {
   generateVideo(input: $input) {
@@ -63,21 +99,6 @@ mutation Generate($input: GenerateVideoInput!) {
 }
 ```
 
-Variables:
-
-```json
-{
-  "input": {
-    "prompt": "cinematic tracking shot",
-    "model": "seedance-2.5",
-    "duration": 10,
-    "resolution": "1080p"
-  }
-}
-```
-
-Queries include `videoGeneration`, `videoGenerations`, `models`, `wallet`, and `apiInfo`.
-
 ## Important current limitation
 
-The external APIs are wired to the same legacy `GenerateVideo` dispatcher method as the GS-One UI. In the current TypeScript migration, that core method is still marked `NOT_MIGRATED_YET`. Therefore the REST/GraphQL layers are complete and authenticated, but actual generation will return an explicit error until the original `GenerateVideo` backend behavior is migrated or connected to the existing upstream generation implementation. This package does **not** invent or replace that upstream API.
+REST and GraphQL share the same `ExternalVideoApiService`, but the migrated TypeScript core still has the original `GenerateVideo` dispatcher method marked `NOT_MIGRATED_YET`. The API layer does not fake success. Actual video generation still requires the original generation behavior to be migrated/connected.

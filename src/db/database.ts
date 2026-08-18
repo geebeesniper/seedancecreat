@@ -173,5 +173,21 @@ export async function initDb(): Promise<void> {
     .addColumn('lastUsedAt','text').addColumn('createdAt','text',c=>c.notNull()).addColumn('revokedAt','text').execute();
   await schema.createIndex('api_keys_hash_idx').ifNotExists().on('api_keys').column('keyHash').unique().execute();
   await schema.createIndex('api_keys_identity_idx').ifNotExists().on('api_keys').columns(['tenantId','userId','createdAt']).execute();
+
+  await schema.createTable('users').ifNotExists()
+    .addColumn('id','text',c=>c.primaryKey()).addColumn('tenantId','text',c=>c.notNull())
+    .addColumn('username','text',c=>c.notNull()).addColumn('usernameLower','text',c=>c.notNull())
+    .addColumn('email','text',c=>c.notNull()).addColumn('emailLower','text',c=>c.notNull())
+    .addColumn('passwordHash','text',c=>c.notNull()).addColumn('passwordSalt','text',c=>c.notNull())
+    .addColumn('status','text',c=>c.notNull()).addColumn('createdAt','text',c=>c.notNull()).addColumn('updatedAt','text',c=>c.notNull()).execute();
+  await schema.createIndex('users_tenant_username_idx').ifNotExists().on('users').columns(['tenantId','usernameLower']).unique().execute();
+  await schema.createIndex('users_tenant_email_idx').ifNotExists().on('users').columns(['tenantId','emailLower']).execute();
+
+  await schema.createTable('auth_sessions').ifNotExists()
+    .addColumn('id','text',c=>c.primaryKey()).addColumn('tenantId','text',c=>c.notNull()).addColumn('userId','text',c=>c.notNull())
+    .addColumn('tokenHash','text',c=>c.notNull()).addColumn('status','text',c=>c.notNull()).addColumn('expiresAt','text',c=>c.notNull())
+    .addColumn('createdAt','text',c=>c.notNull()).addColumn('lastUsedAt','text',c=>c.notNull()).addColumn('revokedAt','text').execute();
+  await schema.createIndex('auth_sessions_hash_idx').ifNotExists().on('auth_sessions').column('tokenHash').unique().execute();
+  await schema.createIndex('auth_sessions_user_idx').ifNotExists().on('auth_sessions').columns(['tenantId','userId','createdAt']).execute();
 }
 

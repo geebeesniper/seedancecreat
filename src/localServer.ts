@@ -16,7 +16,7 @@ await app.register(paymentRoutes);
 await app.register(legacyRoutes);
 
 app.get('/health/runtime', async () => ({ ok: true, runtime: 'local-fastify', vercel: false, version: settings.appVersion }));
-app.get('/health', async () => ({ ok: true, backend: 'typescript', runtime: 'local-fastify', login: false, database: settings.databaseUrl.startsWith('post') ? 'postgresql' : 'sqlite' }));
+app.get('/health', async () => ({ ok: true, backend: 'typescript', runtime: 'local-fastify', login: true, database: settings.databaseUrl.startsWith('post') ? 'postgresql' : 'sqlite' }));
 app.get('/health/db', async (_req, reply) => {
   try {
     await ensureDb();

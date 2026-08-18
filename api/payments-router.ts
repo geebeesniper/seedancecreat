@@ -1,11 +1,11 @@
 import {
   allowCors,
   bodyJson,
-  context,
   ensureDatabase,
   json,
   publicBaseUrl,
   queryValue,
+  sessionAuth,
   type VercelReq,
   type VercelRes,
 } from '../src/apiUtils.js';
@@ -21,7 +21,8 @@ export default async function handler(req: VercelReq, res: VercelRes) {
 
   const route = cleanRoute(queryValue(req, 'route'));
   const method = (req.method || 'GET').toUpperCase();
-  const ctx = context(req);
+  const auth=await sessionAuth(req,res,true); if(!auth)return;
+  const ctx = auth.ctx;
 
   try {
     if (route === 'config') {

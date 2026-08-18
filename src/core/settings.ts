@@ -15,7 +15,7 @@ function intList(value: string | undefined, fallback: number[]): number[] {
 }
 
 export const settings = {
-  appVersion: process.env.APP_VERSION || 'saas-typescript-0.6.1-hobby-7-functions',
+  appVersion: process.env.APP_VERSION || 'saas-typescript-0.7.0-auth-ledger',
   port: Number(process.env.PORT || 8000),
   host: process.env.HOST || '0.0.0.0',
   databaseUrl: process.env.DATABASE_URL || 'sqlite:///./data/gs_one.db',
@@ -37,4 +37,8 @@ export const settings = {
   // External REST + GraphQL API. Keys are hashed in the database.
   apiAdminSecret: process.env.API_ADMIN_SECRET || '',
   externalApiAuthDisabled: boolEnv(process.env.EXTERNAL_API_AUTH_DISABLED, false),
+
+  // First-party SaaS login/session API. Passwords use Node scrypt; raw session tokens are never stored.
+  allowSignup: boolEnv(process.env.ALLOW_SIGNUP, true),
+  sessionTtlHours: intEnv(process.env.SESSION_TTL_HOURS, 168),
 };

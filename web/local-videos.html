@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -15,6 +15,7 @@
     .videoModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.84);z-index:9999;padding:30px;align-items:center;justify-content:center}.videoModal.show{display:flex}.modalBox{width:min(1100px,96vw);max-height:94vh;background:#060b12;border:1px solid #2a3c50;border-radius:16px;overflow:hidden}.modalHead{height:54px;display:flex;justify-content:space-between;align-items:center;padding:0 16px;border-bottom:1px solid #202e3d}.modalName{font-size:13px;color:#c5d2e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.close{background:transparent;color:#9fb0c3;border:0;font-size:24px;cursor:pointer}.viewer{background:black;display:flex;justify-content:center}.viewer video{max-width:100%;max-height:calc(94vh - 54px)}
     @media(max-width:720px){.storage{grid-template-columns:1fr}.row{grid-template-columns:1fr}.rowActions{justify-content:flex-start}.top{align-items:flex-start;flex-direction:column}}
   </style>
+  <script src="/auth-guard.js"></script>
   <script src="/i18n.js"></script>
 </head>
 <body>
@@ -51,7 +52,7 @@
   const S=window.GSLocalVideoStorage;
   const $=id=>document.getElementById(id);
   let files=[]; let queue=[]; let currentObjectUrl='';
-  const headers=()=>({'x-tenant-id':localStorage.getItem('gs_one_tenant')||'default','x-user-id':localStorage.getItem('gs_one_user')||'default'});
+  const headers=()=>{const t=localStorage.getItem('gs_one_session')||'';return t?{authorization:'Bearer '+t}:{}};
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmtSize=n=>{n=Number(n||0);if(n<1024)return n+' B';if(n<1024*1024)return(n/1024).toFixed(1)+' KB';if(n<1024*1024*1024)return(n/1024/1024).toFixed(1)+' MB';return(n/1024/1024/1024).toFixed(2)+' GB'};
   const videoUrl=g=>String(g.video_url||g.videoUrl||g.result_url||g.resultUrl||'').trim();

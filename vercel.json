@@ -19,7 +19,7 @@
     { "source": "/health/db", "destination": "/api/health-router?mode=db" },
     { "source": "/health", "destination": "/api/health-router?mode=health" },
     { "source": "/local-videos", "destination": "/local-videos.html" },
-    { "source": "/login", "destination": "/index.html" },
+    { "source": "/login", "destination": "/login.html" },
     { "source": "/library", "destination": "/index.html" },
     { "source": "/pipeline", "destination": "/index.html" },
     { "source": "/", "destination": "/index.html" }

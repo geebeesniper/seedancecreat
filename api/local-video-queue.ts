@@ -1,4 +1,4 @@
-import { allowCors, context, ensureDatabase, json, queryValue, type VercelReq, type VercelRes } from '../src/apiUtils.js';
+import { allowCors, ensureDatabase, json, queryValue, sessionAuth, type VercelReq, type VercelRes } from '../src/apiUtils.js';
 import { db } from '../src/db/database.js';
 
 function view(x: any) {
@@ -28,7 +28,8 @@ function view(x: any) {
 export default async function handler(req: VercelReq, res: VercelRes) {
   if (allowCors(req, res)) return;
   if (!(await ensureDatabase(res))) return;
-  const ctx = context(req);
+  const auth=await sessionAuth(req,res,true); if(!auth)return;
+  const ctx=auth.ctx;
   const method = (req.method || 'GET').toUpperCase();
 
   if (method === 'GET') {

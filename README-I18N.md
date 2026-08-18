@@ -1,6 +1,6 @@
 # GS-One v0.6.2 Bilingual UI
 
-Default language: **en**.
+Default language: **zh**.
 
 - Chinese / English switch in the top-right corner.
 - Preference is stored in `localStorage` (`gs_one_language`).

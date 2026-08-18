@@ -74,6 +74,36 @@ export class PaymentService {
     }));
   }
 
+  async legacyWallet(ctx: RequestContext) {
+    const w=await this.getWallet(ctx);
+    return {success:true,balance_yuan:w.balance_minor/100,total_recharged_yuan:w.total_recharged_minor/100,total_consumed_yuan:w.total_consumed_minor/100,currency:w.currency,source:'local_saas'};
+  }
+
+  async legacyPaymentConfig(_ctx: RequestContext) {
+    return {success:true,enabled:false,timeout_min:30,provider:'stripe',message:'Use Card / Alipay'};
+  }
+
+  async legacyRechargePackages(_ctx: RequestContext) {
+    return {success:true,packages:settings.stripeRechargePresetsMinor.map((minor,i)=>({id:`stripe-${minor}`,amount_yuan:minor/100,sort_order:i+1,channel:'stripe'}))};
+  }
+
+  async legacyRechargeRecords(ctx: RequestContext,page=1,size=10) {
+    const all=await db.selectFrom('credit_ledger').selectAll().where('tenantId','=',ctx.tenantId).where('userId','=',ctx.userId).orderBy('createdAt','asc').execute();
+    let running=0; const enriched=all.map(r=>{running+=r.deltaMinor;return {...r,balanceAfter:running};}).filter(r=>r.deltaMinor>0).reverse();
+    const p=Math.max(1,Math.trunc(page)||1), sz=Math.max(1,Math.min(100,Math.trunc(size)||10));
+    const rows=enriched.slice((p-1)*sz,p*sz);
+    return {success:true,page:p,size:sz,total:enriched.length,records:rows.map(r=>({id:r.id,created_at:r.createdAt,channel:r.source.startsWith('stripe')?'stripe':'credit',amount_yuan:r.deltaMinor/100,balance_after_fen:r.balanceAfter,remark:r.description,status:'success'}))};
+  }
+
+  async legacyDeductions(ctx: RequestContext,page=1,size=20,status='') {
+    const all=await db.selectFrom('credit_ledger').selectAll().where('tenantId','=',ctx.tenantId).where('userId','=',ctx.userId).orderBy('createdAt','asc').execute();
+    let running=0; const enriched=all.map(r=>{running+=r.deltaMinor;return {...r,balanceAfter:running};}).filter(r=>r.deltaMinor<0).reverse();
+    const filtered=status && status!=='success' ? [] : enriched;
+    const p=Math.max(1,Math.trunc(page)||1), sz=Math.max(1,Math.min(100,Math.trunc(size)||20));
+    const rows=filtered.slice((p-1)*sz,p*sz);
+    return {success:true,page:p,size:sz,total:filtered.length,list:rows.map(r=>({id:r.id,created_at:r.createdAt,feature_point_key:r.source,feature_point_name:r.description||r.source,drama_name:'-',drama_code:'',amount_yuan:Math.abs(r.deltaMinor)/100,balance_after_fen:r.balanceAfter,status:'success',failure_reason:''}))};
+  }
+
   async createStripeCheckout(ctx: RequestContext, input: Record<string, unknown>, baseUrl: string) {
     if (!stripeConfigured()) return { success:false, code:'STRIPE_NOT_CONFIGURED' };
     const amountMinor=asMinor(input.amount_minor);

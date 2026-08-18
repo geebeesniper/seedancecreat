@@ -15,6 +15,11 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "API Key"
+      },
+      "SessionBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "GS-One Session Token"
       }
     }
   },
@@ -182,6 +187,157 @@
         "responses": {
           "200": {
             "description": "GraphQL response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Register a GS-One SaaS account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account and session created"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Sign in and receive a session token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "identifier",
+                  "password"
+                ],
+                "properties": {
+                  "identifier": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Get the signed-in user",
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Revoke the current session",
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed out"
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys": {
+      "get": {
+        "summary": "List API keys for the signed-in account",
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key metadata"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an API key for the signed-in account",
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "API key created; secret returned once"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Revoke an API key",
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key revoked"
           }
         }
       }

@@ -63,6 +63,16 @@ export interface CreditLedgerTable {
   description: string; createdAt: string;
 }
 
+
+export interface UserTable {
+  id: string; tenantId: string; username: string; usernameLower: string; email: string; emailLower: string;
+  passwordHash: string; passwordSalt: string; status: string; createdAt: string; updatedAt: string;
+}
+export interface AuthSessionTable {
+  id: string; tenantId: string; userId: string; tokenHash: string; status: string; expiresAt: string;
+  createdAt: string; lastUsedAt: string; revokedAt: string | null;
+}
+
 export interface Database {
   projects: ProjectTable;
   episodes: EpisodeTable;
@@ -76,4 +86,6 @@ export interface Database {
   payment_events: PaymentEventTable;
   credit_ledger: CreditLedgerTable;
   api_keys: ApiKeyTable;
+  users: UserTable;
+  auth_sessions: AuthSessionTable;
 }

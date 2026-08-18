@@ -33,6 +33,28 @@ export function context(req: VercelReq): RequestContext {
   };
 }
 
+
+export function bearerToken(req: VercelReq): string {
+  const auth=headerValue(req,'authorization')||'';
+  const m=auth.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1].trim() : '';
+}
+
+export async function sessionAuth(req: VercelReq, res?: VercelRes, required=true) {
+  const token=bearerToken(req);
+  if (!token) {
+    if (required && res) json(res,401,{success:false,code:'AUTH_REQUIRED'});
+    return null;
+  }
+  const { authService }=await import('./services/authService.js');
+  const auth=await authService.authenticate(token);
+  if (!auth) {
+    if (required && res) json(res,401,{success:false,code:'INVALID_OR_EXPIRED_SESSION'});
+    return null;
+  }
+  return {...auth,token};
+}
+
 export function json(res: VercelRes, status: number, body: unknown): void {
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.status(status).json(body);
@@ -41,7 +63,7 @@ export function json(res: VercelRes, status: number, body: unknown): void {
 export function allowCors(req: VercelReq, res: VercelRes): boolean {
   res.setHeader('access-control-allow-origin', '*');
   res.setHeader('access-control-allow-methods', 'GET,POST,DELETE,OPTIONS');
-  res.setHeader('access-control-allow-headers', 'content-type,authorization,x-api-key,x-api-admin-secret,x-tenant-id,x-user-id,x-request-id,stripe-signature');
+  res.setHeader('access-control-allow-headers', 'content-type,authorization,x-api-key,x-api-admin-secret,x-request-id,stripe-signature');
   if ((req.method || '').toUpperCase() === 'OPTIONS') {
     res.status(204).end();
     return true;

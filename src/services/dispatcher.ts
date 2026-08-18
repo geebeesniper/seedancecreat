@@ -3,24 +3,33 @@ import type { RequestContext } from '../core/context.js';
 import { FrozenUpstreamClient } from '../integrations/upstream.js';
 import { AppService } from './appService.js';
 import { LEGACY_METHODS } from './legacyMethods.js';
+import { paymentService } from './paymentService.js';
+import { authService } from './authService.js';
 
 const obj=(x:unknown):Record<string,unknown>=>x && typeof x==='object' && !Array.isArray(x) ? x as Record<string,unknown> : {};
 export class Dispatcher {
   private app=new AppService(); private up=new FrozenUpstreamClient();
   async dispatch(ctx:RequestContext,m:string,a:unknown[]):Promise<unknown>{
     if(!LEGACY_METHODS.has(m)) return {success:false,code:'UNKNOWN_METHOD',method:m};
+    // First-party SaaS auth is enforced by the HTTP handler. The Wails bridge
+    // implements Login/Logout/IsLoggedIn through /api/v1/auth/* directly.
     if(m==='IsLoggedIn')return true;
-    if(m==='Login')return {success:true,authenticated:true,no_login_mode:true};
-    if(m==='Logout')return true;
-    if(m==='GetUserInfo') return settings.upstreamBaseUrl ? this.up.getUserInfo(ctx) : {id:ctx.userId,username:'SaaS User',team_name:'Default',created_at:'',no_login_mode:true};
-    if(m==='GetWallet')return this.up.getWallet(ctx);
-    if(m==='GetWxPayConfig')return this.up.paymentConfig(ctx);
-    if(m==='ListRechargePackages')return this.up.rechargePackages(ctx);
-    if(m==='CreateWxPayOrder')return this.up.createOrder(ctx,a[0]);
-    if(m==='QueryWxPayOrderStatus')return this.up.queryOrder(ctx,String(a[0]??''));
-    if(m==='ListRechargeRecords')return this.up.rechargeRecords(ctx,Number(a[0]??1),Number(a[1]??20));
-    if(m==='ListFeaturePointDeductions')return this.up.deductions(ctx,Number(a[0]??1),Number(a[1]??20),a[2]?String(a[2]):undefined);
-    if(m==='GetMarketingActivities')return this.up.getMarketing(ctx);
+    if(m==='Login')return {success:false,code:'USE_AUTH_API'};
+    if(m==='Logout')return {success:true};
+    if(m==='GetUserInfo') {
+      const u=await authService.getUser(ctx);
+      return u ? {id:u.id,username:u.username,email:u.email,team_name:u.tenant_id,team:u.tenant_id,created_at:u.created_at,registerTime:u.created_at,status:u.status} : {id:ctx.userId,username:'User',team_name:ctx.tenantId,created_at:''};
+    }
+    // Legacy wallet/recharge UI now reads our own Supabase ledger. It no longer
+    // depends on the friend's upstream server. The old WeChat checkout itself stays disabled.
+    if(m==='GetWallet')return paymentService.legacyWallet(ctx);
+    if(m==='GetWxPayConfig')return paymentService.legacyPaymentConfig(ctx);
+    if(m==='ListRechargePackages')return paymentService.legacyRechargePackages(ctx);
+    if(m==='CreateWxPayOrder')return {success:false,code:'WECHAT_DISABLED_USE_CARD_OR_ALIPAY',error:'Use Card / Alipay'};
+    if(m==='QueryWxPayOrderStatus')return {success:false,code:'WECHAT_DISABLED_USE_CARD_OR_ALIPAY'};
+    if(m==='ListRechargeRecords')return paymentService.legacyRechargeRecords(ctx,Number(a[0]??1),Number(a[1]??20));
+    if(m==='ListFeaturePointDeductions')return paymentService.legacyDeductions(ctx,Number(a[0]??1),Number(a[1]??20),a[2]?String(a[2]):'');
+    if(m==='GetMarketingActivities')return settings.upstreamBaseUrl?this.up.getMarketing(ctx):{success:true,activities:[],list:[]};
     if(m==='GetAIModels')return this.up.getModels(ctx);
     if(m==='GetFeaturePointInfo')return this.up.getFeaturePoint(ctx,String(a[0]??''));
     if(m==='ListSaaSScripts')return this.up.listScripts(ctx,String(a[0]??''));

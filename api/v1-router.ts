@@ -1,4 +1,4 @@
-import { bodyJson, context, queryValue } from '../src/apiUtils.js';
+import { bodyJson, context, queryValue, sessionAuth } from '../src/apiUtils.js';
 import {
   allowCors,
   ensureDatabase,
@@ -10,6 +10,7 @@ import {
 } from '../src/externalApiHttp.js';
 import { assertAdminSecret, createApiKey, listApiKeys, revokeApiKey } from '../src/services/apiKeyService.js';
 import { externalVideoApiService } from '../src/services/externalVideoApiService.js';
+import { authService } from '../src/services/authService.js';
 
 function cleanRoute(value: string | undefined): string {
   return decodeURIComponent(String(value || '')).replace(/^\/+|\/+$/g, '');
@@ -31,23 +32,52 @@ export default async function handler(req: VercelReq, res: VercelRes) {
       rest: '/api/v1',
       graphql: '/api/graphql',
       openapi: '/openapi.json',
-      auth: 'Bearer sk_test_... or sk_live_...',
+      auth: 'Login: Bearer gs_session_...; external video API: Bearer sk_test_... or sk_live_...',
     });
   }
 
   if (!(await ensureDatabase(res))) return;
 
   try {
+    if (route === 'auth/register') {
+      if (method !== 'POST') return json(res,405,{success:false,code:'METHOD_NOT_ALLOWED'});
+      const b=await bodyJson(req);
+      const result=await authService.register({username:b.username,email:b.email,password:b.password});
+      return json(res,201,result);
+    }
+
+    if (route === 'auth/login') {
+      if (method !== 'POST') return json(res,405,{success:false,code:'METHOD_NOT_ALLOWED'});
+      const b=await bodyJson(req);
+      return json(res,200,await authService.login({identifier:b.identifier,username:b.username,email:b.email,password:b.password}));
+    }
+
+    if (route === 'auth/me') {
+      if (method !== 'GET') return json(res,405,{success:false,code:'METHOD_NOT_ALLOWED'});
+      const auth=await sessionAuth(req,res,true); if(!auth)return;
+      return json(res,200,{success:true,user:auth.user,expires_at:auth.session.expiresAt});
+    }
+
+    if (route === 'auth/logout') {
+      if (method !== 'POST') return json(res,405,{success:false,code:'METHOD_NOT_ALLOWED'});
+      const auth=await sessionAuth(req,res,true); if(!auth)return;
+      return json(res,200,await authService.logout(auth.token));
+    }
+
     if (route === 'api-keys') {
-      assertAdminSecret(req);
-      const fallback = context(req);
+      // A signed-in SaaS user can manage only their own API keys. The admin-secret
+      // path remains available for bootstrap/ops and can target an explicit user.
+      const signedIn = await sessionAuth(req, undefined, false);
+      let fallback = signedIn?.ctx ?? context(req);
+      const isAdmin = !signedIn;
+      if (isAdmin) assertAdminSecret(req);
       if (method === 'GET') {
         return json(res, 200, { success: true, items: await listApiKeys(fallback.tenantId, fallback.userId) });
       }
       if (method === 'POST') {
         const b = await bodyJson(req);
-        const tenantId = String(b.tenant_id ?? b.tenantId ?? fallback.tenantId);
-        const userId = String(b.user_id ?? b.userId ?? fallback.userId);
+        const tenantId = isAdmin ? String(b.tenant_id ?? b.tenantId ?? fallback.tenantId) : fallback.tenantId;
+        const userId = isAdmin ? String(b.user_id ?? b.userId ?? fallback.userId) : fallback.userId;
         const mode = String(b.mode || 'test') === 'live' ? 'live' : 'test';
         const scopes = Array.isArray(b.scopes) ? b.scopes.map(String) : undefined;
         return json(res, 201, {
