@@ -1,1 +1,0 @@
-import { allowCors,json,type VercelReq,type VercelRes } from '../../src/externalApiHttp.js';export default async function handler(req:VercelReq,res:VercelRes){if(allowCors(req,res))return;json(res,200,{name:'GS-One External API',version:'v1',rest:'/api/v1',graphql:'/api/graphql',openapi:'/openapi.json',auth:'Bearer sk_test_... or sk_live_...'});}
