@@ -1,17 +1,5 @@
-# v0.4.7 Vercel Fastify official-entry fix
+# Deployment note
 
-This release changes only the Vercel runtime entry strategy and keeps the existing API/payment boundaries.
+v0.4.8 supersedes the earlier Fastify zero-config deployment attempts.
 
-Key changes:
-- Removed duplicate root `server.ts`.
-- `src/server.ts` is the sole Fastify entrypoint.
-- Restored `app.listen(...)`, matching Vercel's current Fastify zero-config deployment model.
-- Database remains lazily initialized for `/api/*` and `/health/db` only.
-- Supabase Build preflight remains enabled.
-- `/health/runtime` and `/health` do not initialize the schema.
-
-After pushing to `main`, test in this order:
-1. `/health/runtime`
-2. `/health`
-3. `/health/db`
-4. `/library`
+Use Vercel static hosting + native `api/*.ts` functions. Do not re-enable the old Fastify whole-site entrypoint on Vercel.

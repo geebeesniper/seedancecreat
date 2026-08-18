@@ -39,6 +39,19 @@ export function createDb(): Kysely<Database> {
 
 export const db = createDb();
 
+let initialized = false;
+let initializing: Promise<void> | null = null;
+
+export async function ensureDb(): Promise<void> {
+  if (initialized) return;
+  if (!initializing) {
+    initializing = initDb()
+      .then(() => { initialized = true; })
+      .finally(() => { initializing = null; });
+  }
+  await initializing;
+}
+
 export async function initDb(): Promise<void> {
   const schema = db.schema;
   await schema.createTable('projects').ifNotExists()

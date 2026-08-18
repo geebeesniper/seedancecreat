@@ -1,182 +1,49 @@
-# v0.4.6 Vercel runtime/TLS fix
+# GS-One SaaS TypeScript v0.4.8
 
-This patch fixes two deployment-specific issues:
+This package keeps the extracted original GS-One Vue frontend and the TypeScript business scripts, but changes the Vercel deployment shape.
 
-- The Vercel-imported Fastify module no longer calls `app.listen()` or `initDb()` during module import, even if the `VERCEL` system variable is unavailable.
-- PostgreSQL SSL query options are stripped before passing the connection string to `pg`, preventing them from overriding the explicit TLS object. Build preflight and runtime now use the same connection configuration.
-- `/health/runtime` is database-free and should prove the Vercel function can boot.
+## What is preserved
 
-Use the existing Vercel `DATABASE_URL`; both with and without `?sslmode=require` are tolerated because the pg-facing URL is sanitized.
+- Original extracted frontend files under `public/` and `web/`.
+- `public/wails-bridge.js` with the legacy `window.go.main.App.*` compatibility methods.
+- `src/services/*` project / episode / asset / storyboard / generation compatibility logic.
+- `src/integrations/upstream.ts` original upstream API/payment adapter boundary.
+- Stripe/Card/Alipay payment service and webhook code.
+- Database schema and Supabase/Postgres preflight.
 
-# v0.4.4 Vercel runtime fix
+## What changed in v0.4.8
 
-This build fixes Vercel runtime crashes by:
-- not connecting/migrating the database during module import
-- lazily initializing PostgreSQL only for `/api/*` requests
-- adding `/health/db` for database diagnostics
-- avoiding loading the native `better-sqlite3` driver on Vercel/PostgreSQL
-- adding short PostgreSQL connection timeouts suitable for serverless
+The Vercel deployment no longer boots Fastify as a whole-site server. Vercel serves the UI statically from `public/`, and backend calls use native serverless functions in `api/`.
 
-Use Supabase Transaction Pooler (port 6543) with `?sslmode=require`.
+Important test URLs:
 
-# GS-One Web SaaS — TypeScript + Stripe
+- `/health/runtime` — native Vercel function, does not touch database.
+- `/health` — basic runtime config.
+- `/health/db` — initializes schema and tests Supabase/Postgres.
+- `/library` — static Vue UI.
+- `/payments.html` — SaaS Card/Alipay payment page.
 
-Version 0.4 adds a second payment provider to the TypeScript SaaS baseline while preserving the original GS-One upstream payment/API boundary.
+Required Vercel environment variables:
 
-## Architecture
+```env
+DATABASE_URL=postgres://postgres.xxx:password@aws-0-ca-central-1.pooler.supabase.com:6543/postgres
+DEFAULT_TENANT_ID=default
+DEFAULT_USER_ID=default
+DEV_ALLOW_OFFLINE_UPSTREAM=true
+```
 
-    Original extracted Vue frontend
-           ↓
-    web/wails-bridge.js
-           ↓
-    Fastify + TypeScript
-           ↓
-    Kysely + PostgreSQL/Neon (SQLite for local test)
-           ↓
-    ┌──────────────────────┬──────────────────────────┐
-    │ Original upstream    │ NEW Stripe provider      │
-    │ wallet / WeChat / API│ Card + Alipay Checkout   │
-    │ FROZEN               │ webhook → SaaS credits  │
-    └──────────────────────┴──────────────────────────┘
+For first deployment, leave `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `UPSTREAM_BASE_URL`, and `UPSTREAM_ACCESS_TOKEN` empty until `/health/runtime`, `/health`, `/health/db`, and `/library` work.
 
-There is no Go runtime and no Python runtime.
+## Deploy with GitHub
 
-## What changed in 0.4
+After replacing files in your local `seedancecreat` clone:
 
-- Added Stripe hosted Checkout for credit/debit cards.
-- Added Stripe-hosted Alipay Checkout.
-- Added signed Stripe webhook processing.
-- Added idempotent payment settlement so retries do not double-credit.
-- Added local SaaS credit wallet and credit ledger.
-- Added Stripe payment order history.
-- Added `/payments.html` payment center and a `Card / Alipay` shortcut in the original UI.
-- Added a root `server.ts` entry point for Vercel Fastify auto-detection.
-- Added `vercel.json` so the extracted `web/**` frontend is included with the function.
+```bash
+git add .
+git commit -m "Switch to Vercel native API deployment"
+git push origin main
+```
 
-## Important payment boundary
+Vercel will automatically deploy from `main`.
 
-The original upstream payment is not replaced or emulated:
-
-- `GetWallet`
-- `GetWxPayConfig`
-- `ListRechargePackages`
-- `CreateWxPayOrder`
-- `QueryWxPayOrderStatus`
-- `ListRechargeRecords`
-
-still go through `src/integrations/upstream.ts` unchanged.
-
-The original program does not expose an endpoint that lets an external Stripe payment directly credit its upstream wallet. Therefore Stripe payments in this version credit a **separate local SaaS credits wallet**. The code intentionally does not fake a WeChat callback or pretend Stripe money was received by the old payment server.
-
-If the upstream service later provides an official `credit wallet` / `manual recharge` API, add that as a settlement adapter after Stripe webhook verification.
-
-## Local test without Stripe
-
-Install Node.js 22+, then:
-
-    npm install
-    npm run dev
-
-Open:
-
-    http://127.0.0.1:8000/library
-    http://127.0.0.1:8000/payments.html
-
-With Stripe variables blank the payment page loads, but Card/Alipay buttons are disabled.
-
-## Stripe setup
-
-Copy `.env.example` to `.env` and set:
-
-    STRIPE_SECRET_KEY=sk_test_...
-    STRIPE_WEBHOOK_SECRET=whsec_...
-    PUBLIC_BASE_URL=https://your-domain.example
-
-Defaults:
-
-    STRIPE_DEFAULT_CURRENCY=usd
-    STRIPE_MIN_RECHARGE_MINOR=500
-    STRIPE_MAX_RECHARGE_MINOR=100000
-    STRIPE_RECHARGE_PRESETS_MINOR=1000,2000,5000,10000
-
-For USD, `500` means `$5.00`, `2000` means `$20.00`, etc.
-
-### Stripe webhook URL
-
-Register this endpoint in Stripe:
-
-    https://YOUR_DOMAIN/api/payments/stripe/webhook
-
-Events used by this version:
-
-- `checkout.session.completed`
-- `checkout.session.async_payment_succeeded`
-- `checkout.session.async_payment_failed`
-- `checkout.session.expired`
-
-The handler verifies the `Stripe-Signature` against the raw HTTP body before changing balances.
-
-### Alipay
-
-The application requests `alipay` explicitly when the user clicks the Alipay button. Alipay must also be enabled/eligible on the Stripe account, and the chosen currency/account configuration must support it. This version defaults to USD one-time payments.
-
-## Vercel + Neon
-
-This project now has a root `server.ts`, which is a Vercel-recognized Fastify entry point.
-
-Recommended production environment variables:
-
-    DATABASE_URL=postgresql://...Neon...?sslmode=require
-    PUBLIC_BASE_URL=https://YOUR_PROJECT.vercel.app
-    STRIPE_SECRET_KEY=sk_...
-    STRIPE_WEBHOOK_SECRET=whsec_...
-
-Optional original upstream variables remain:
-
-    UPSTREAM_BASE_URL=
-    UPSTREAM_ACCESS_TOKEN=
-
-Do not use SQLite as durable production storage on serverless hosting. Use Neon/PostgreSQL.
-
-## Payment API added
-
-    GET  /api/payments/config
-    GET  /api/payments/wallet
-    GET  /api/payments/orders
-    POST /api/payments/stripe/checkout
-    GET  /api/payments/stripe/session/:sessionId
-    POST /api/payments/stripe/webhook
-
-`POST /api/payments/stripe/checkout` body:
-
-    {
-      "method": "card" | "alipay",
-      "amount_minor": 2000,
-      "client_request_id": "browser-generated-idempotency-id"
-    }
-
-## Security notes
-
-- `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are server-only.
-- Full card numbers never pass through GS-One; Stripe Checkout collects them.
-- Balances are changed only after a trusted Stripe result: a signed webhook or a server-to-server Checkout Session lookup.
-- Settlement is idempotent at both event and Checkout Session level.
-- The visible GS-One login is still removed. Until a parent SaaS authentication layer is added, the default tenant/user represents a shared test account. Do not use this no-login identity model for a real multi-user paid production service.
-
-## Existing migration status
-
-All 83 observed legacy `window.go.main.App.*` method names remain available through the browser compatibility bridge. The deep Director/Editor pipeline, generation workers, RunningHub polling and several upload/segment flows are still migration work and return `NOT_MIGRATED_YET` where appropriate.
-
-## Vercel v0.4.3 deployment fix
-
-Vercel now detects Fastify apps with zero configuration. Do not declare the root `server.ts` under `functions` in `vercel.json`; the `functions` map is for matching Vercel Functions (normally under `api/`) and caused `unmatched-function-pattern` on Drop deployments. This package keeps `vercel.json` schema-only and lets Vercel's Fastify adapter detect `server.ts` automatically.
-
-## v0.4.5 database preflight
-
-Vercel builds now run a real PostgreSQL preflight after TypeScript compilation. The check opens a connection to `DATABASE_URL` and executes `SELECT current_database(), current_user, now()`.
-
-- On Vercel, a missing/invalid `DATABASE_URL` makes the build fail with a clear message instead of deploying a site that later returns HTTP 500.
-- Supabase pooler hosts automatically enable TLS even if `?sslmode=require` was omitted.
-- The log prints only host, port, database, and user; it never prints the password or full connection URL.
-- Run the same check locally with `npm run db:check`.
-- Runtime database health remains available at `/health/db`.
+If the Vercel project is still set to Framework Preset `Fastify`, change it once to `Other` in Vercel Project Settings → Build & Development Settings. This version intentionally does not use Vercel Fastify zero-config.
