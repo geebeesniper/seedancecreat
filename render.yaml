@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: gs-one-saas-typescript
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DEFAULT_TENANT_ID
+        value: default
+      - key: DEFAULT_USER_ID
+        value: default
+      - key: UPSTREAM_BASE_URL
+        sync: false
+      - key: UPSTREAM_ACCESS_TOKEN
+        sync: false
+      - key: DEV_ALLOW_OFFLINE_UPSTREAM
+        value: "true"
