@@ -15,7 +15,7 @@ function intList(value: string | undefined, fallback: number[]): number[] {
 }
 
 export const settings = {
-  appVersion: process.env.APP_VERSION || 'saas-typescript-0.6.0-rest-graphql-api',
+  appVersion: process.env.APP_VERSION || 'saas-typescript-0.6.1-hobby-7-functions',
   port: Number(process.env.PORT || 8000),
   host: process.env.HOST || '0.0.0.0',
   databaseUrl: process.env.DATABASE_URL || 'sqlite:///./data/gs_one.db',

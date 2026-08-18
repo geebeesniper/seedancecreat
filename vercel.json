@@ -1,41 +1,27 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    {
-      "source": "/api-docs",
-      "destination": "/api-docs.html"
-    },
-    {
-      "source": "/health/runtime",
-      "destination": "/api/health-runtime"
-    },
-    {
-      "source": "/health/db",
-      "destination": "/api/health-db"
-    },
-    {
-      "source": "/health",
-      "destination": "/api/health"
-    },
-    {
-      "source": "/local-videos",
-      "destination": "/local-videos.html"
-    },
-    {
-      "source": "/login",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/library",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/pipeline",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/",
-      "destination": "/index.html"
-    }
+    { "source": "/api/v1", "destination": "/api/v1-router" },
+    { "source": "/api/v1/:path*", "destination": "/api/v1-router?route=:path*" },
+
+    { "source": "/api/payments/config", "destination": "/api/payments-router?route=config" },
+    { "source": "/api/payments/wallet", "destination": "/api/payments-router?route=wallet" },
+    { "source": "/api/payments/orders", "destination": "/api/payments-router?route=orders" },
+    { "source": "/api/payments/stripe/checkout", "destination": "/api/payments-router?route=stripe%2Fcheckout" },
+    { "source": "/api/payments/stripe/session/:sessionId", "destination": "/api/payments-router?route=stripe%2Fsession%2F:sessionId" },
+
+    { "source": "/api/health-runtime", "destination": "/api/health-router?mode=runtime" },
+    { "source": "/api/health-db", "destination": "/api/health-router?mode=db" },
+    { "source": "/api/health", "destination": "/api/health-router?mode=health" },
+
+    { "source": "/api-docs", "destination": "/api-docs.html" },
+    { "source": "/health/runtime", "destination": "/api/health-router?mode=runtime" },
+    { "source": "/health/db", "destination": "/api/health-router?mode=db" },
+    { "source": "/health", "destination": "/api/health-router?mode=health" },
+    { "source": "/local-videos", "destination": "/local-videos.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/library", "destination": "/index.html" },
+    { "source": "/pipeline", "destination": "/index.html" },
+    { "source": "/", "destination": "/index.html" }
   ]
 }
